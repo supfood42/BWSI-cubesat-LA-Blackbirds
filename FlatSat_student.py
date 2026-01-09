@@ -86,8 +86,8 @@ def take_photo():
         delta = abs(magnitude - 9.81)  # subtract gravity
 
         if delta >= THRESHOLD:
-            print(f"Shake detected (delta={delta:.2f}). Capturing photo...")
-            # time.sleep(0.5)  # Pause
+            print(f"Shake detected (delta={delta:.2f}). Capturing photo in 1 sec...")
+            time.sleep(1)  # Pause
 
             # Generate filenames
             t = time.strftime("_%H%M%S")

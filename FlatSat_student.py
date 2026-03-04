@@ -18,6 +18,8 @@ import time
 import board
 import os
 import math
+import threading
+import sys
 from adafruit_lsm6ds.lsm6dsox import LSM6DSOX as LSM6DS
 from adafruit_lis3mdl import LIS3MDL
 from git import Repo
@@ -75,18 +77,32 @@ def take_photo():
     """
     name = "Aaron"  # First Name, Last Initial
     local_pictures_dir = "/home/supfood/Pictures"
+    repo_pictures_dir = os.path.join(REPO_PATH, FOLDER_PATH)
 
     # Ensure local Pictures directory exists
     if not os.path.exists(local_pictures_dir):
         os.makedirs(local_pictures_dir)
+    if not os.path.exists(repo_pictures_dir):
+        os.makedirs(repo_pictures_dir)
+
+    def render_bar(value, threshold, width=30):
+        max_display = max(threshold * 2, 0.1)
+        clamped = min(value, max_display)
+        filled = int((clamped / max_display) * width)
+        bar = "#" * filled + "-" * (width - filled)
+        return f"[{bar}] {value:.2f}g (threshold {threshold}g)"
 
     while True:
         accelx, accely, accelz = accel_gyro.acceleration
         magnitude = math.sqrt(accelx**2 + accely**2 + accelz**2)
         delta = abs(magnitude - 9.81)  # subtract gravity
 
+        # Live progress bar for current reading
+        sys.stdout.write("\r" + render_bar(delta, THRESHOLD))
+        sys.stdout.flush()
+
         if delta >= THRESHOLD:
-            print(f"Shake detected (delta={delta:.2f}). Capturing photo in 1 sec...")
+            print(f"\nShake detected (delta={delta:.2f}). Capturing photo in 1 sec...")
             time.sleep(1)  # Pause
 
             # Generate filenames
@@ -101,9 +117,21 @@ def take_photo():
 
             print(f"Photos saved to repo and {local_img_path}")
 
-            git_push()
+            # Push in background so cooldown shows immediately
+            threading.Thread(target=git_push, daemon=True).start()
 
-        time.sleep(2.0)  # cooldown before checking again
+            # Cooldown with countdown display
+            cooldown = 2.0
+            steps = 20
+            for i in range(steps, -1, -1):
+                remaining = (cooldown * i) / steps
+                sys.stdout.write(f"\rCooldown: {remaining:0.2f}s")
+                sys.stdout.flush()
+                time.sleep(cooldown / steps)
+            print()  # move to next line
+
+        else:
+            time.sleep(0.1)  # small delay to avoid busy-waiting
 
 
 def main():

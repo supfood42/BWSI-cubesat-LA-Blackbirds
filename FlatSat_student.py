@@ -25,6 +25,15 @@ from adafruit_lis3mdl import LIS3MDL
 from git import Repo
 from picamera2 import Picamera2
 
+# CubeSat mission modules (optional - can be used for state tracking)
+try:
+    from mission_control import MissionStateMachine, MissionState, MissionEvent
+    MISSION_FSM = MissionStateMachine()
+    USE_MISSION_FSM = True
+except ImportError:
+    MISSION_FSM = None
+    USE_MISSION_FSM = False
+
 # VARIABLES
 THRESHOLD = 3  # allowed deviation from gravity; tune up/down as needed
 REPO_PATH = "/home/supfood/BWSI-cubesat-LA-Blackbirds"  # local clone on the Pi
@@ -116,6 +125,10 @@ def take_photo():
             picam2.stop()
 
             print(f"Photos saved to repo and {local_img_path}")
+            
+            # Log image capture in mission FSM
+            if USE_MISSION_FSM and MISSION_FSM:
+                MISSION_FSM.record_image_captured()
 
             # Push in background so cooldown shows immediately
             threading.Thread(target=git_push, daemon=True).start()
@@ -135,6 +148,21 @@ def take_photo():
 
 
 def main():
+    """
+    Main mission control function.
+    
+    Mission sequence:
+    1. BOOT state initialization
+    2. Transition to SCIENCE_OBSERVATION
+    3. Begin IMU monitoring for shake events
+    4. On detection: capture -> process -> downlink
+    """
+    if USE_MISSION_FSM:
+        # Transition from BOOT to SCIENCE_OBSERVATION
+        MISSION_FSM.transition(MissionState.SCIENCE_OBSERVATION, 
+                              MissionEvent("boot_complete"))
+        print("\n" + MISSION_FSM.mission_summary())
+    
     take_photo()
 
 

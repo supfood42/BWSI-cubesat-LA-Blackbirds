@@ -49,7 +49,7 @@ img_enhanced = cv2.convertScaleAbs(img_gray, alpha=contrast, beta=brightness)
 #CLAHE enhancement
 #CONFIGS
 clipLimit = 2.0
-clahe = cv2.createCLAHE(clipLimit=clipLimit, titleGridSize=(8,8))
+clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=(8,8))
 img_clahe = clahe.apply(img_gray)
 
 #Noise filtering 
